@@ -63,7 +63,7 @@ function update(time, delta) {
         player.anims.play('idle', true);
     }
     // jump 
-    if (cursors.up.isDown && player.body.onFloor())
+    if ((cursors.up.isDown || cursors.space.isDown) && player.body.onFloor())
     {
         player.body.setVelocityY(-500);        
     }
