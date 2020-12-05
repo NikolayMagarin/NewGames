@@ -1,43 +1,78 @@
 import Phaser from "phaser";
-
 import mapUrl from "./assets/map.json";
 import tilesUrl from "./assets/tiles.png";
 import coinGoldUrl from "./assets/coinGold.png";
 import playerImageUrl from "./assets/player.png";
 import playerUrl from "./assets/player.json";
+import { getCanvasSize } from "./utils";
 
-var config = {
-    type: Phaser.AUTO,
-    width: 800,
-    height: 600,
-    physics: {
-        default: 'arcade',
-        arcade: {
-            gravity: {y: 500},
-            debug: false
+const isDebug = process.env.NODE_ENV === 'development';
+
+/**
+ * Returns game config
+ * @return {Phaser.Types.Core.GameConfig}
+ */
+function getConfig() {
+    const { height, width } = getCanvasSize();
+    return {
+        title: "Игра",
+        type: Phaser.AUTO,
+        parent: "phaser-example",
+        width: width,
+        height: height,
+        physics: {
+            default: 'arcade',
+            arcade: {
+                gravity: {y: 500}, // will affect our player sprite
+                debug: isDebug // change if you need
+            }
+        },
+        scene: {
+            key: 'main',
+            preload: preload,
+            create: create,
+            update: update
         }
-    },
-    scene: {
-        key: 'main',
-        preload: preload,
-        create: create,
-        update: update
+    };
+}
+
+
+
+let map;
+let player;
+let cursors;
+let groundLayer, coinLayer;
+let text;
+let score = 0;
+const game = new Phaser.Game(getConfig());
+
+function update(time, delta) {
+    if (cursors.left.isDown)
+    {
+        player.body.setVelocityX(-200);
+        player.anims.play('walk', true); // walk left
+        player.flipX = true; // flip the sprite to the left
     }
-};
-
-var game = new Phaser.Game(config);
-
-var map;
-var player;
-var cursors;
-var groundLayer, coinLayer;
-var text;
-var score = 0;
+    else if (cursors.right.isDown)
+    {
+        player.body.setVelocityX(200);
+        player.anims.play('walk', true);
+        player.flipX = false; // use the original sprite looking to the right
+    } else {
+        player.body.setVelocityX(0);
+        player.anims.play('idle', true);
+    }
+    // jump 
+    if (cursors.up.isDown && player.body.onFloor())
+    {
+        player.body.setVelocityY(-500);        
+    }
+}
 
 function preload() {
     // map made with Tiled in JSON format
     this.load.tilemapTiledJSON('map', mapUrl);
-    // tiles in spritesheet 
+    // tiles in spritesheet
     this.load.spritesheet('tiles', tilesUrl, {frameWidth: 70, frameHeight: 70});
     // simple coin image
     this.load.image('coin', coinGoldUrl);
@@ -46,18 +81,18 @@ function preload() {
 }
 
 function create() {
-    // load the map 
+    // load the map
     map = this.make.tilemap({key: 'map'});
 
     // tiles for the ground layer
-    var groundTiles = map.addTilesetImage('tiles');
+    let groundTiles = map.addTilesetImage('tiles');
     // create the ground layer
     groundLayer = map.createDynamicLayer('World', groundTiles, 0, 0);
     // the player will collide with this layer
     groundLayer.setCollisionByExclusion([-1]);
 
     // coin image used as tileset
-    var coinTiles = map.addTilesetImage('coin');
+    let coinTiles = map.addTilesetImage('coin');
     // add coins as tiles
     coinLayer = map.createDynamicLayer('Coins', coinTiles, 0, 0);
 
@@ -65,20 +100,20 @@ function create() {
     this.physics.world.bounds.width = groundLayer.width;
     this.physics.world.bounds.height = groundLayer.height;
 
-    // create the player sprite    
+    // create the player sprite
     player = this.physics.add.sprite(200, 200, 'player');
     player.setBounce(0.2); // our player will bounce from items
-    player.setCollideWorldBounds(true); // don't go out of the map    
-    
+    player.setCollideWorldBounds(true); // don't go out of the map
+
     // small fix to our player images, we resize the physics body object slightly
     player.body.setSize(player.width, player.height-8);
-    
-    // player will collide with the level tiles 
+
+    // player will collide with the level tiles
     this.physics.add.collider(groundLayer, player);
 
     coinLayer.setTileIndexCallback(17, collectCoin, this);
-    // when the player overlaps with a tile with index 17, collectCoin 
-    // will be called    
+    // when the player overlaps with a tile with index 17, collectCoin
+    // will be called
     this.physics.add.overlap(player, coinLayer);
 
     // player walk animation
@@ -103,7 +138,7 @@ function create() {
     // make the camera follow the player
     this.cameras.main.startFollow(player);
 
-    // set background color, so the sky is not black    
+    // set background color, so the sky is not black
     this.cameras.main.setBackgroundColor('#ccccff');
 
     // this text will show the score
@@ -121,27 +156,4 @@ function collectCoin(sprite, tile) {
     score++; // add 10 points to the score
     text.setText(score); // set the text to show the current score
     return false;
-}
-
-function update(time, delta) {
-    if (cursors.left.isDown)
-    {
-        player.body.setVelocityX(-200);
-        player.anims.play('walk', true); // walk left
-        player.flipX = true; // flip the sprite to the left
-    }
-    else if (cursors.right.isDown)
-    {
-        player.body.setVelocityX(200);
-        player.anims.play('walk', true);
-        player.flipX = false; // use the original sprite looking to the right
-    } else {
-        player.body.setVelocityX(0);
-        player.anims.play('idle', true);
-    }
-    // jump 
-    if (cursors.up.isDown && player.body.onFloor())
-    {
-        player.body.setVelocityY(-500);        
-    }
 }
