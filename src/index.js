@@ -4,6 +4,7 @@ import tilesUrl from "./assets/tiles.png";
 import coinGoldUrl from "./assets/coinGold.png";
 import playerImageUrl from "./assets/player.png";
 import playerUrl from "./assets/player.json";
+import spikeUrl from "./assets/spike.png"
 import { getCanvasSize } from "./utils";
 
 const isDebug = process.env.NODE_ENV === 'development';
@@ -12,7 +13,8 @@ const isDebug = process.env.NODE_ENV === 'development';
  * Returns game config
  * @return {Phaser.Types.Core.GameConfig}
  */
-function getConfig() {
+
+ function getConfig() {
     const { height, width } = getCanvasSize();
     return {
         title: "Игра",
@@ -24,7 +26,7 @@ function getConfig() {
             default: 'arcade',
             arcade: {
                 gravity: {y: 500}, // will affect our player sprite
-                debug: isDebug // change if you need
+                debug: false // change if you need
             }
         },
         scene: {
@@ -41,25 +43,28 @@ function getConfig() {
 let map;
 let player;
 let cursors;
-let groundLayer, coinLayer;
+let groundLayer, coinLayer, usingLayer, spikeLayer;
 let text;
 let score = 0;
+
 const game = new Phaser.Game(getConfig());
+
+let UseKey;
 
 function update(time, delta) {
     if (cursors.left.isDown)
     {
-        player.body.setVelocityX(-200);
+        player.body.setVelocityX(-400);
         player.anims.play('walk', true); // walk left
         player.flipX = true; // flip the sprite to the left
     }
     else if (cursors.right.isDown)
     {
-        player.body.setVelocityX(200);
+        player.body.setVelocityX(400);
         player.anims.play('walk', true);
         player.flipX = false; // use the original sprite looking to the right
     } else {
-        player.body.setVelocityX(0);
+        player.body.setDragX(2400);
         player.anims.play('idle', true);
     }
     // jump 
@@ -67,6 +72,7 @@ function update(time, delta) {
     {
         player.body.setVelocityY(-500);        
     }
+    // if (UseKey.isDown && this.physics.overlap(player, usingLayer)) {console.log("Using This Yellow Thing!")}
 }
 
 function preload() {
@@ -76,11 +82,14 @@ function preload() {
     this.load.spritesheet('tiles', tilesUrl, {frameWidth: 70, frameHeight: 70});
     // simple coin image
     this.load.image('coin', coinGoldUrl);
+    this.load.image('spike', spikeUrl);
     // player animations
     this.load.atlas('player', playerImageUrl, playerUrl);
 }
 
 function create() {
+    UseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+
     // load the map
     map = this.make.tilemap({key: 'map'});
 
@@ -96,6 +105,11 @@ function create() {
     // add coins as tiles
     coinLayer = map.createDynamicLayer('Coins', coinTiles, 0, 0);
 
+    usingLayer = map.createDynamicLayer('Using', groundTiles, 0, 0);
+
+    let spikeTiles = map.addTilesetImage('spike');
+    spikeLayer = map.createDynamicLayer('Spikes', spikeTiles, 0, 0);
+
     // set the boundaries of our game world
     this.physics.world.bounds.width = groundLayer.width;
     this.physics.world.bounds.height = groundLayer.height;
@@ -107,7 +121,6 @@ function create() {
 
     // small fix to our player images, we resize the physics body object slightly
     player.body.setSize(player.width, player.height-8);
-
     // player will collide with the level tiles
     this.physics.add.collider(groundLayer, player);
 
@@ -115,6 +128,12 @@ function create() {
     // when the player overlaps with a tile with index 17, collectCoin
     // will be called
     this.physics.add.overlap(player, coinLayer);
+
+    usingLayer.setTileIndexCallback(7, useThing);
+    this.physics.add.overlap(player, usingLayer);
+    
+    spikeLayer.setTileIndexCallback(18, restart, this);
+    this.physics.add.overlap(player, spikeLayer);
 
     // player walk animation
     this.anims.create({
@@ -156,4 +175,17 @@ function collectCoin(sprite, tile) {
     score++; // add 10 points to the score
     text.setText(score); // set the text to show the current score
     return false;
+}
+
+function useThing(sprite, tile) {
+  if(UseKey.isDown) {
+    // console.log("Using This Thing!", tile.x, tile.y);
+    tile.y--;
+    tile.updatePixelXY()
+  }
+  return false;
+}
+
+function restart() {
+  this.scene.restart();
 }
